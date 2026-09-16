@@ -39,9 +39,19 @@ function formModal({title, fields, values={}, onSubmit, submitText='حفظ'}){
     if(f.type==='select') return `<div class="form-group"><label>${U.esc(f.label)}</label><select class="input" name="${f.name}" ${f.required?'required':''}>${(f.options||[]).map(o=>`<option value="${U.esc(o.value)}" ${String(o.value)===String(v)?'selected':''}>${U.esc(o.label)}</option>`).join('')}</select></div>`;
     if(f.type==='textarea') return `<div class="form-group"><label>${U.esc(f.label)}</label><textarea class="input" name="${f.name}">${U.esc(v)}</textarea></div>`;
     if(f.type==='checkbox') return `<div class="form-group flex gap"><label class="switch"><input type="checkbox" name="${f.name}" ${v?'checked':''}><span></span></label><label>${U.esc(f.label)}</label></div>`;
+    if(f.type==='icon'){ const list=f.options||U.CAT_ICONS;
+      return `<div class="form-group"><label>${U.esc(f.label)}</label><input type="hidden" name="${f.name}" value="${U.esc(v)}"><div class="ico-pick">${list.map(i=>`<button type="button" class="ico-opt ${String(i)===String(v)?'active':''}" data-v="${U.esc(i)}" title="${U.esc(i)}">${U.icon(i)}</button>`).join('')}</div></div>`; }
     return `<div class="form-group"><label>${U.esc(f.label)}</label><input class="input" name="${f.name}" type="${f.type||'text'}" value="${U.esc(v)}" ${f.required?'required':''} ${f.step?`step="${f.step}"`:''} ${f.min!==undefined?`min="${f.min}"`:''} maxlength="${f.max||200}" placeholder="${U.esc(f.placeholder||'')}"></div>`;
   }).join('')}<button class="btn block" style="margin-top:8px"><i class="fa-solid fa-floppy-disk"></i> ${U.esc(submitText)}</button></form>`;
   const m = U.modal(html,{title});
+  // منتقي الأيقونات: زر واحد في كل مرة، ويُخزَّن الاسم في حقل مخفي
+  m.querySelectorAll('.ico-pick').forEach(box=>{
+    const input = box.parentElement.querySelector('input[type=hidden]');
+    box.querySelectorAll('.ico-opt').forEach(b=>b.onclick=()=>{
+      box.querySelectorAll('.ico-opt').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active'); if(input) input.value = b.dataset.v;
+    });
+  });
   m.querySelector('#fm').onsubmit = async e=>{ e.preventDefault(); const d=U.formData(e.target);
     fields.forEach(f=>{ if(f.type==='checkbox') d[f.name]=e.target[f.name].checked; if(f.type==='number') d[f.name]=U.toNum(d[f.name]); if(d[f.name]==='' && f.nullable!==false) d[f.name]=null; });
     const btn=e.target.querySelector('button'); U.loading(btn);

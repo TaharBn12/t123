@@ -14,12 +14,34 @@ const U = {
   uid(){ return crypto.randomUUID(); },
   // تنظيف مدخلات الباركود (أرقام وحروف فقط)
   cleanBarcode(s){ return String(s||'').replace(/[^A-Za-z0-9\-_.]/g,'').slice(0,64); },
+  // ===== أيقونات احترافية (Font Awesome) بدل الإيموجي =====
+  // أيقونة جاهزة: تُقبل أسماء Font Awesome فقط (fa-*) لمنع حقن أي وسم
+  icon(cls, extra=''){ const c=String(cls||'').trim(); if(!/^fa-[a-z0-9-]+$/i.test(c)) return ''; return `<i class="fa-solid ${c}${extra?' '+String(extra).replace(/[^a-z0-9 _-]/gi,''):''}" aria-hidden="true"></i>`; },
+  // تحويل ما خُزّن قديماً كإيموجي إلى أيقونة Font Awesome مكافئة (لا يظهر أي إيموجي)
+  EMOJI_ICONS: {'📦':'fa-box','📁':'fa-folder','🧺':'fa-basket-shopping','🛒':'fa-cart-shopping','🥤':'fa-bottle-water','🍶':'fa-bottle-water','☕':'fa-mug-hot','🍞':'fa-bread-slice','🧀':'fa-cheese','🍎':'fa-apple-whole','🥕':'fa-carrot','🐟':'fa-fish','🍗':'fa-drumstick-bite','🥚':'fa-egg','🍬':'fa-candy-cane','🍪':'fa-cookie-bite','🍫':'fa-candy','💊':'fa-pills','🧴':'fa-spray-can-sparkles','🧼':'fa-soap','👕':'fa-shirt','👟':'fa-shoe-prints','📱':'fa-mobile-screen','💻':'fa-laptop','🔌':'fa-plug','🔧':'fa-screwdriver-wrench','🧰':'fa-toolbox','📚':'fa-book','✏':'fa-pen-ruler','👶':'fa-baby-carriage','🐾':'fa-paw','🎁':'fa-gift','🏷':'fa-tag','🍽':'fa-utensils','🥡':'fa-box-open','🧾':'fa-receipt','💰':'fa-sack-dollar','⚙':'fa-gear'},
+  // أيقونة تصنيف: اسم Font Awesome، أو إيموجي قديم يُحوَّل تلقائياً، أو الافتراضية
+  catIcon(v, fallback='fa-box'){
+    const s = String(v||'').trim();
+    if(/^fa-[a-z0-9-]+$/i.test(s)) return `<i class="fa-solid ${s}" aria-hidden="true"></i>`;
+    if(s){
+      const bare = [...s].filter(ch=>ch!=='\uFE0F').join('');       // تجاهل محدد العرض
+      const mapped = U.EMOJI_ICONS[bare] || U.EMOJI_ICONS[s] || U.EMOJI_ICONS[bare[0]];
+      if(mapped) return U.icon(mapped);
+    }
+    return U.icon(fallback);
+  },
+  // أيقونات معتمدة للاختيار (تصنيفات وغيرها)
+  CAT_ICONS: ['fa-box','fa-boxes-stacked','fa-basket-shopping','fa-cart-shopping','fa-bottle-water','fa-mug-hot','fa-bread-slice','fa-cheese','fa-apple-whole','fa-carrot','fa-fish','fa-drumstick-bite','fa-egg','fa-cookie-bite','fa-candy-cane','fa-pills','fa-pump-medical','fa-spray-can-sparkles','fa-soap','fa-shirt','fa-shoe-prints','fa-mobile-screen','fa-laptop','fa-plug','fa-screwdriver-wrench','fa-toolbox','fa-book','fa-pen-ruler','fa-baby-carriage','fa-paw','fa-gift','fa-tag'],
+  // صورة بديلة موحّدة (أيقونة) عندما لا توجد صورة للمنتج
+  imgPlaceholder(cls='fa-box-open', extra=''){ return `<span class="ph-ico">${U.icon(cls,extra)}</span>`; },
   // التحقق من الأرقام
   toNum(v, def=0){ const n = parseFloat(v); return Number.isFinite(n) ? n : def; },
-  toast(msg, type='success'){
+  toast(msg, type='success', icon=''){
     let box = U.qs('#toasts'); if(!box){ box=document.createElement('div'); box.id='toasts'; document.body.appendChild(box); }
     const t = document.createElement('div'); t.className=`toast ${type}`;
-    t.innerHTML = `<i class="fa-solid ${type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info'}"></i><span>${U.esc(msg)}</span>`;
+    const ic = /^fa-[a-z0-9-]+$/i.test(String(icon||'')) ? icon
+      : (type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info');
+    t.innerHTML = `<i class="fa-solid ${ic}"></i><span>${U.esc(msg)}</span>`;
     box.appendChild(t); setTimeout(()=>{t.classList.add('hide'); setTimeout(()=>t.remove(),300)}, 3500);
   },
   confirm(msg){ return new Promise(res=>{

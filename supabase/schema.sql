@@ -238,14 +238,27 @@ create table if not exists scan_events (
 create index if not exists idx_scan_events_created on scan_events(created_at desc);
 
 -- ---------- Realtime ----------
-alter publication supabase_realtime add table scan_events;
-alter publication supabase_realtime add table products;
+-- آمن لإعادة التشغيل: لا يضيف الجدول إن كان مضافاً مسبقاً
+do $$ begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    if not exists (select 1 from pg_publication_tables
+                   where pubname='supabase_realtime' and schemaname='public' and tablename='scan_events') then
+      alter publication supabase_realtime add table scan_events;
+    end if;
+    if not exists (select 1 from pg_publication_tables
+                   where pubname='supabase_realtime' and schemaname='public' and tablename='products') then
+      alter publication supabase_realtime add table products;
+    end if;
+  end if;
+end $$;
 
 -- ---------- دوال مساعدة ----------
 -- تحديث المخزون عند البيع (ذري)
 create or replace function adjust_stock(p_product_id uuid, p_qty numeric, p_type text, p_ref uuid default null, p_notes text default null)
 returns void language plpgsql security definer set search_path = public as $$
 begin
+  if not is_active_user() then raise exception 'الحساب غير مفعّل'; end if;
+  if p_qty is null or p_qty = 0 then return; end if;
   update products set stock = stock + p_qty, updated_at = now() where id = p_product_id;
   insert into stock_movements(product_id, type, quantity, reference_id, user_id, notes)
   values (p_product_id, p_type, p_qty, p_ref, auth.uid(), p_notes);
@@ -256,6 +269,10 @@ create or replace function complete_sale(p_sale jsonb, p_items jsonb)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare v_sale_id uuid; v_item jsonb;
 begin
+  if not is_active_user() then raise exception 'الحساب غير مفعّل'; end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'لا أصناف في الفاتورة';
+  end if;
   insert into sales(customer_id, user_id, shift_id, subtotal, discount, tax, total, paid, change_due, payment_method, status, notes)
   values ((p_sale->>'customer_id')::uuid, auth.uid(), (p_sale->>'shift_id')::uuid,
     (p_sale->>'subtotal')::numeric, (p_sale->>'discount')::numeric, (p_sale->>'tax')::numeric,
@@ -264,6 +281,11 @@ begin
   returning id into v_sale_id;
 
   for v_item in select * from jsonb_array_elements(p_items) loop
+    -- حماية: لا كمية سالبة/صفرية ولا سعر سالب (وإلا أمكن التلاعب بالمخزون)
+    if coalesce((v_item->>'quantity')::numeric, 0) <= 0 then raise exception 'كمية غير صالحة في الفاتورة'; end if;
+    if coalesce((v_item->>'unit_price')::numeric, 0) < 0 or coalesce((v_item->>'total')::numeric, 0) < 0 then
+      raise exception 'قيمة غير صالحة في الفاتورة';
+    end if;
     insert into sale_items(sale_id, product_id, product_name, barcode, quantity, unit_price, discount, tax, total)
     values (v_sale_id, (v_item->>'product_id')::uuid, v_item->>'product_name', v_item->>'barcode',
       (v_item->>'quantity')::numeric, (v_item->>'unit_price')::numeric, coalesce((v_item->>'discount')::numeric,0),
@@ -283,8 +305,10 @@ begin
 end $$;
 
 -- إحصائيات لوحة التحكم
-create or replace function dashboard_stats() returns jsonb language sql stable security definer set search_path = public as $$
-  select jsonb_build_object(
+create or replace function dashboard_stats() returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not is_active_user() then raise exception 'الحساب غير مفعّل'; end if;
+  return (select jsonb_build_object(
     'today_sales', coalesce((select sum(total) from sales where created_at::date = current_date and status='completed'),0),
     'today_count', (select count(*) from sales where created_at::date = current_date),
     'month_sales', coalesce((select sum(total) from sales where date_trunc('month',created_at)=date_trunc('month',now()) and status='completed'),0),
@@ -295,8 +319,8 @@ create or replace function dashboard_stats() returns jsonb language sql stable s
     'week', (select coalesce(jsonb_agg(jsonb_build_object('d', d, 'v', v) order by d),'[]'::jsonb) from (
         select g::date d, coalesce(sum(s.total),0) v from generate_series(current_date-6, current_date, '1 day') g
         left join sales s on s.created_at::date = g::date and s.status='completed' group by g) w)
-  );
-$$;
+  ));
+end $$;
 
 -- ---------- RLS ----------
 do $$ declare t text; begin
@@ -331,7 +355,24 @@ end $$;
 
 -- الملفات الشخصية: المستخدم يعدّل ملفه، المدير يعدّل الجميع
 drop policy if exists "profile_update" on profiles;
-create policy "profile_update" on profiles for update to authenticated using (id = auth.uid() or is_admin());
+create policy "profile_update" on profiles for update to authenticated
+  using (id = auth.uid() or is_admin())
+  with check (id = auth.uid() or is_admin());
+
+-- منع المستخدم من رفع صلاحياته أو تفعيل حسابه بنفسه (تعديل role / is_active للمدراء فقط)
+create or replace function protect_profile_privileges() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return new; end if; -- وصول مباشر من قاعدة البيانات مسموح
+  if (new.role is distinct from old.role) or (new.is_active is distinct from old.is_active) then
+    if not is_admin() then
+      raise exception 'تعديل الصلاحية أو حالة الحساب متاح لمدير النظام فقط';
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_protect_profile_privileges on profiles;
+create trigger trg_protect_profile_privileges before update on profiles
+  for each row execute function protect_profile_privileges();
 -- الإعدادات والخصومات: المدراء
 drop policy if exists "settings_write" on settings;
 create policy "settings_write" on settings for all to authenticated using (is_manager()) with check (is_manager());
@@ -339,6 +380,47 @@ drop policy if exists "discounts_write" on discounts;
 create policy "discounts_write" on discounts for insert to authenticated with check (is_manager());
 drop policy if exists "discounts_upd" on discounts;
 create policy "discounts_upd" on discounts for update to authenticated using (is_manager());
+
+-- ---------- تخزين صور المنتجات (Supabase Storage) ----------
+do $$ begin
+  if to_regclass('storage.buckets') is not null then
+    insert into storage.buckets (id, name, public) values ('products','products', true)
+    on conflict (id) do update set public = true;
+
+    execute 'drop policy if exists "products_read" on storage.objects';
+    execute 'create policy "products_read" on storage.objects for select using (bucket_id = ''products'')';
+    execute 'drop policy if exists "products_insert" on storage.objects';
+    execute 'create policy "products_insert" on storage.objects for insert to authenticated with check (bucket_id = ''products'' and is_active_user())';
+    execute 'drop policy if exists "products_update" on storage.objects';
+    execute 'create policy "products_update" on storage.objects for update to authenticated using (bucket_id = ''products'' and is_active_user())';
+    execute 'drop policy if exists "products_delete" on storage.objects';
+    execute 'create policy "products_delete" on storage.objects for delete to authenticated using (bucket_id = ''products'' and is_manager())';
+  end if;
+end $$;
+
+-- ---------- صلاحيات تنفيذ الدوال ----------
+-- الدوال security definer تتجاوز RLS، لذلك نمنع استدعاءها من anon/بدون حساب
+-- ونتركها للمستخدمين المسجّلين (مع التحقق من التفعيل داخل الدالة)
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on function adjust_stock(uuid, numeric, text, uuid, text) from public';
+    execute 'revoke all on function complete_sale(jsonb, jsonb) from public';
+    execute 'revoke all on function dashboard_stats() from public';
+    execute 'grant execute on function adjust_stock(uuid, numeric, text, uuid, text) to authenticated';
+    execute 'grant execute on function complete_sale(jsonb, jsonb) to authenticated';
+    execute 'grant execute on function dashboard_stats() to authenticated';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on function adjust_stock(uuid, numeric, text, uuid, text) from anon';
+    execute 'revoke all on function complete_sale(jsonb, jsonb) from anon';
+    execute 'revoke all on function dashboard_stats() from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    execute 'grant execute on function adjust_stock(uuid, numeric, text, uuid, text) to service_role';
+    execute 'grant execute on function complete_sale(jsonb, jsonb) to service_role';
+    execute 'grant execute on function dashboard_stats() to service_role';
+  end if;
+end $$;
 
 -- بيانات أولية
 insert into settings(key,value) values

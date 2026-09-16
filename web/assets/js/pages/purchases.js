@@ -6,10 +6,10 @@ initPage('المشتريات', null, async (c)=>{
     columns:[{label:'التاريخ',render:r=>U.date(r.created_at),raw:r=>r.created_at},{label:'المورد',render:r=>`<b>${U.esc(r.suppliers?.name||'-')}</b>`,raw:r=>r.suppliers?.name},{label:'مرجع الفاتورة',key:'invoice_ref'},{label:'الأصناف',render:r=>r.purchase_items?.length||0,raw:r=>r.purchase_items?.length},{label:'الإجمالي',render:r=>`<b>${U.money(r.total)}</b>`,raw:r=>r.total},{label:'المدفوع',render:r=>U.money(r.paid),raw:r=>r.paid},{label:'المتبقي',render:r=>`<b style="color:${r.total-r.paid>0?'var(--danger)':'var(--success)'}">${U.money(r.total-r.paid)}</b>`,raw:r=>r.total-r.paid},{label:'بواسطة',render:r=>U.esc(r.profiles?.full_name||''),raw:r=>r.profiles?.full_name}],
     actions:r=>`<button class="btn sm ghost" data-v="${r.id}"><i class="fa-solid fa-eye"></i></button>`});
   dt.onLoaded=()=>U.qsa('[data-v]').forEach(b=>b.onclick=async()=>{ const {data}=await db.from('purchase_items').select('*,products(name)').eq('purchase_id',b.dataset.v); U.modal(`<div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th><th>الكمية</th><th>التكلفة</th><th>المجموع</th></tr></thead><tbody>${(data||[]).map(i=>`<tr><td>${U.esc(i.products?.name||'')}</td><td>${U.num(i.quantity)}</td><td>${U.money(i.cost_price)}</td><td>${U.money(i.total)}</td></tr>`).join('')}</tbody></table></div>`,{title:'تفاصيل فاتورة الشراء'}); });
-  const newPurchase=(draft=[])=>{ let lines=draft.length?draft:[{}];
+  const newPurchase=(draft=[])=>{ let lines=draft.length?draft:[{}]; let bridge=null;
     const m=U.modal(`<div class="form-row mb"><div class="form-group"><label>المورد</label><select class="input" id="sup"><option value="">- بدون -</option>${(sups||[]).map(s=>`<option value="${s.id}" ${s.id===supF?'selected':''}>${U.esc(s.name)}</option>`).join('')}</select></div><div class="form-group"><label>مرجع الفاتورة</label><input class="input" id="ref"></div></div>
-      <div class="flex gap mb"><input class="input" id="scan" placeholder="امسح باركود لإضافة صنف" style="direction:ltr"></div><div id="lines"></div><button class="btn ghost sm mb" id="addL"><i class="fa-solid fa-plus"></i> سطر</button>
-      <div class="form-row"><div class="form-group"><label>الإجمالي</label><input class="input" id="tot" readonly></div><div class="form-group"><label>المدفوع</label><input class="input" id="paid" type="number" step="0.01" min="0"></div></div><label class="flex gap mb"><input type="checkbox" id="updCost" checked> تحديث سعر التكلفة في المنتجات</label><button class="btn success block" id="save"><i class="fa-solid fa-check"></i> حفظ واستلام البضاعة</button>`,{title:'فاتورة شراء جديدة'});
+      <div class="flex gap mb wrap"><input class="input" id="scan" placeholder="امسح باركود لإضافة صنف" style="direction:ltr">${ScanBridge.pill('purchase','scanPillP')}</div><div id="lines"></div><button class="btn ghost sm mb" id="addL"><i class="fa-solid fa-plus"></i> سطر</button>
+      <div class="form-row"><div class="form-group"><label>الإجمالي</label><input class="input" id="tot" readonly></div><div class="form-group"><label>المدفوع</label><input class="input" id="paid" type="number" step="0.01" min="0"></div></div><label class="flex gap mb"><input type="checkbox" id="updCost" checked> تحديث سعر التكلفة في المنتجات</label><button class="btn success block" id="save"><i class="fa-solid fa-check"></i> حفظ واستلام البضاعة</button>`,{title:'فاتورة شراء جديدة', onClose:()=>{ try{ if(bridge) bridge.close(); }catch(e){} }});
     const dl=`<datalist id="pl">${(prods||[]).map(p=>`<option value="${U.esc(p.name)}">`).join('')}</datalist>`;
     const render=()=>{ m.querySelector('#lines').innerHTML=dl+`<table class="table"><thead><tr><th>الصنف</th><th style="width:100px">الكمية</th><th style="width:120px">التكلفة</th><th></th></tr></thead><tbody>${lines.map((l,i)=>`<tr><td><input class="input" list="pl" value="${U.esc(l.name||'')}" data-n="${i}" placeholder="اكتب اسم المنتج"></td><td><input class="input" type="number" step="any" min="0" value="${l.quantity||''}" data-q="${i}"></td><td><input class="input" type="number" step="0.01" min="0" value="${l.cost_price??''}" data-c="${i}"></td><td><button class="icon-btn" data-x="${i}"><i class="fa-solid fa-xmark"></i></button></td></tr>`).join('')}</tbody></table>`;
       U.qsa('[data-n]',m).forEach(i=>i.onchange=()=>{const p=prods.find(x=>x.name===i.value); lines[i.dataset.n].name=i.value; lines[i.dataset.n].product_id=p?.id; if(p&&!lines[i.dataset.n].cost_price){ lines[i.dataset.n].cost_price=+p.cost_price; render(); }});
@@ -23,7 +23,17 @@ initPage('المشتريات', null, async (c)=>{
       for(const l of valid){ await db.rpc('adjust_stock',{p_product_id:l.product_id,p_qty:l.quantity,p_type:'purchase',p_ref:pu.id}); if(m.querySelector('#updCost').checked&&l.cost_price) await db.from('products').update({cost_price:l.cost_price}).eq('id',l.product_id); }
       if(sup&&total-paid>0){ const s=(await db.from('suppliers').select('balance').eq('id',sup).single()).data; await db.from('suppliers').update({balance:+(s?.balance||0)+total-paid}).eq('id',sup); }
       if(paid>0) await db.from('expenses').insert({title:`شراء بضاعة ${m.querySelector('#ref').value||''}`,category:'مشتريات',amount:paid,user_id:Auth.user.id});
-      U.log('purchase','purchases',pu.id,{total}); U.toast('تم الاستلام وتحديث المخزون'); m.close(); dt.load(); }; render(); };
+      U.log('purchase','purchases',pu.id,{total}); U.toast('تم الاستلام وتحديث المخزون'); m.close(); dt.load(); }; render();
+    // === قناة المسح الخاصة بفاتورة الشراء (تُغلق مع النافذة) ===
+    bridge=ScanBridge.connect({target:'purchase', pillId:'scanPillP', onScan:async (barcode, ev)=>{
+      const pr=prods.find(x=>x.barcode===barcode);
+      if(!pr) return U.toast('باركود غير مسجّل: '+barcode,'error','fa-barcode');
+      const qty=Math.max(U.toNum(ev.quantity,1),0.001);
+      const ex=lines.find(l=>l.product_id===pr.id);
+      if(ex) ex.quantity=(ex.quantity||0)+qty;
+      else { if(lines.length===1&&!lines[0].name) lines=[]; lines.push({product_id:pr.id,name:pr.name,quantity:qty,cost_price:+pr.cost_price}); }
+      render(); U.toast(`أُضيف ${pr.name} × ${U.num(qty)}`,'success','fa-cart-plus');
+    }}); };
   U.qs('#new').onclick=()=>newPurchase();
   if(U.param('new')){ const d=JSON.parse(sessionStorage.getItem('purchaseDraft')||'[]'); sessionStorage.removeItem('purchaseDraft'); newPurchase(d); }
 });

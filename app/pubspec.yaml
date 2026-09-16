@@ -4,13 +4,15 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  # mobile_scanner 7.x يتطلب Dart 3.7+ / Flutter 3.29+
+  sdk: ^3.7.0
 
 dependencies:
   flutter:
     sdk: flutter
   supabase_flutter: ^2.5.0
-  mobile_scanner: ^5.1.1
+  # 7.x: يدعم Impeller على أندرويد ويُصلح أخطاء تهيئة كانت تُظهر شاشة سوداء
+  mobile_scanner: ^7.4.2
   shared_preferences: ^2.2.3
   device_info_plus: ^10.1.0
   google_fonts: ^6.2.1

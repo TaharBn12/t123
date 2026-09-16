@@ -33,5 +33,5 @@ initPage('لوحة التحكم', null, async (c)=>{
   U.qs('#lastSales').innerHTML = (ls||[]).length ? `<ul class="list">${ls.map(s=>`<li class="flex between"><a href="sale-details.html?id=${s.id}"><b>#${s.sale_number}</b> <small class="muted">${U.esc(s.customers?.name||'زبون عام')} · ${U.date(s.created_at)}</small></a><b style="color:var(--primary)">${U.money(s.total)}</b></li>`).join('')}</ul>` : '<div class="empty">لا فواتير</div>';
   const {data:low} = await db.from('products').select('id,name,stock,min_stock').eq('is_active',true).order('stock').limit(30);
   const l2=(low||[]).filter(p=>+p.stock<=+p.min_stock).slice(0,6);
-  U.qs('#lowStock').innerHTML = l2.length? `<ul class="list">${l2.map(p=>`<li class="flex between"><a href="product-form.html?id=${p.id}">${U.esc(p.name)}</a><span class="badge ${+p.stock<=0?'danger':'warning'}">${U.num(p.stock)} ${+p.stock<=0?'نفد':'منخفض'}</span></li>`).join('')}</ul>` : '<div class="empty">المخزون بحالة جيدة ✅</div>';
+  U.qs('#lowStock').innerHTML = l2.length? `<ul class="list">${l2.map(p=>`<li class="flex between"><a href="product-form.html?id=${p.id}">${U.esc(p.name)}</a><span class="badge ${+p.stock<=0?'danger':'warning'}">${U.num(p.stock)} ${+p.stock<=0?'نفد':'منخفض'}</span></li>`).join('')}</ul>` : `<div class="empty">${U.icon('fa-circle-check')}المخزون بحالة جيدة</div>`;
 });

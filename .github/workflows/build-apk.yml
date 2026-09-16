@@ -31,7 +31,14 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # تثبيت الإصدار لضمان تكرار البناء (mobile_scanner 7.x يتطلب Flutter 3.29+)
+          flutter-version: 3.47.4
           cache: true
+
+      - name: Print toolchain versions (للتشخيص)
+        run: |
+          flutter --version
+          java -version
 
       # تسريع البناء: تخزين مؤقت لمكتبات Gradle (يُحفظ حتى لو فشل البناء)
       - uses: actions/cache/restore@v4

@@ -30,6 +30,18 @@ class ScanService {
     return c.length > 64 ? c.substring(0, 64) : c;
   }
 
+  /// آخر سبب فشل إرسال — يُعرض للمستخدم بدل أن يختفي المسح بصمت.
+  static String? lastError;
+
+  /// يحوّل خطأ القاعدة إلى سبب مفهوم؛ يكتشف قيد الوجهة القديم تحديداً.
+  static String _explain(Object e) {
+    final String s = e.toString();
+    if (s.contains('scan_events_target_check') || s.contains('23514')) {
+      return 'قاعدة البيانات لا تقبل هذه الوجهة بعد: شغّل ملف supabase/schema.sql في محرر SQL ثم اضغط «إعادة الإرسال».';
+    }
+    return s.length > 180 ? s.substring(0, 180) : s;
+  }
+
   static Future<Map<String, dynamic>?> lookup(String barcode) async {
     final r = await _db.from('products').select('id,name,sale_price,stock,unit,image_url').eq('barcode', barcode).maybeSingle();
     return r;
@@ -46,8 +58,10 @@ class ScanService {
     try {
       await _db.from('scan_events').insert(row);
       await flushQueue();
+      lastError = null;
       return true;
-    } catch (_) {
+    } catch (e) {
+      lastError = _explain(e);
       await _enqueue(row);
       return false;
     }

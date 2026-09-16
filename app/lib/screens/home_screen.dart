@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/app_settings.dart';
 import '../services/scan_service.dart';
+import '../services/scan_targets.dart';
 import 'scanner_screen.dart';
 import 'login_screen.dart';
 
@@ -13,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _queue = 0;
   String _name = '';
+  String _lastTarget = 'pos';
 
   @override
   void initState() {
@@ -39,19 +42,27 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       queue = await ScanService.queueLength();
     } catch (_) {}
-    if (mounted) setState(() { _name = name; _queue = queue; });
+    String lastTarget = 'pos';
+    try {
+      lastTarget = await AppSettings.target();
+    } catch (_) {}
+    if (mounted) setState(() { _name = name; _queue = queue; _lastTarget = lastTarget; });
   }
 
-  Widget _mode(BuildContext c, {required String title, required String sub, required IconData icon, required Color color, required String target}) => Card(
-        margin: const EdgeInsets.only(bottom: 14),
+  Widget _mode(BuildContext c, ScanTarget t) => Card(
+        margin: const EdgeInsets.only(bottom: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: ListTile(
-          contentPadding: const EdgeInsets.all(16),
-          leading: Container(width: 54, height: 54, decoration: BoxDecoration(color: color.withOpacity(.15), borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: color, size: 28)),
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-          subtitle: Text(sub),
+          contentPadding: const EdgeInsets.all(14),
+          leading: Container(width: 50, height: 50, decoration: BoxDecoration(color: t.color.withOpacity(.15), borderRadius: BorderRadius.circular(14)), child: Icon(t.icon, color: t.color, size: 26)),
+          title: Row(children: [
+            Expanded(child: Text(t.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+            if (t.id == _lastTarget)
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: t.color.withOpacity(.18), borderRadius: BorderRadius.circular(20)), child: const Text('الأخيرة', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700))),
+          ]),
+          subtitle: Text(t.hint),
           trailing: const Icon(Icons.arrow_back_ios_new, size: 16),
-          onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => ScannerScreen(target: target, title: title))).then((_) => _load()),
+          onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => ScannerScreen(target: t.id, title: t.label))).then((_) => _load()),
         ),
       );
 
@@ -73,11 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ]),
         ),
         const SizedBox(height: 22),
-        const Text('اختر وضع المسح', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        const Text('اختر الصفحة التي سيُرسل إليها المسح', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
         const SizedBox(height: 10),
-        _mode(context, title: 'عرض المنتجات', sub: 'يظهر المنتج في صفحة "استقبال المسح" على الموقع', icon: Icons.visibility, color: Colors.indigo, target: 'products'),
-        _mode(context, title: 'نقطة البيع', sub: 'يُضاف المنتج مباشرة إلى سلة الكاشير', icon: Icons.point_of_sale, color: Colors.green, target: 'pos'),
-        _mode(context, title: 'الجرد', sub: 'مسح متكرر لحساب الكميات الفعلية', icon: Icons.inventory, color: Colors.orange, target: 'inventory'),
+        ...ScanTarget.all.map((t) => _mode(context, t)),
         const SizedBox(height: 14),
         const Card(child: Padding(padding: EdgeInsets.all(14), child: Row(children: [Icon(Icons.info_outline, color: Colors.blueAccent), SizedBox(width: 10), Expanded(child: Text('افتح الموقع على الحاسوب بنفس الحساب، وستظهر عمليات المسح لحظياً. عند انقطاع الإنترنت تُحفظ العمليات وتُرسل لاحقاً.', style: TextStyle(fontSize: 12)))]))),
       ]),

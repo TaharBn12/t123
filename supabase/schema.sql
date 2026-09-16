@@ -230,12 +230,29 @@ create table if not exists scan_events (
   barcode text not null,
   device_id text,
   user_id uuid references profiles(id),
-  target text default 'products' check (target in ('products','pos','inventory')),
+  -- وجهة المسح: لكل صفحة في الموقع وجهة خاصة بها
+  target text default 'products' check (target in ('products','pos','inventory','product','purchase','returns')),
   quantity numeric(14,3) default 1,
   consumed boolean default false,
   created_at timestamptz default now()
 );
 create index if not exists idx_scan_events_created on scan_events(created_at desc);
+
+-- ترقية لقاعدة موجودة: توسيع قائمة الوجهات المسموحة (السكربت آمن لإعادة التشغيل)
+alter table if exists scan_events drop constraint if exists scan_events_target_check;
+do $$
+begin
+  if to_regclass('public.scan_events') is not null
+     and not exists (select 1
+                       from pg_constraint con
+                       join pg_class cls on cls.oid = con.conrelid
+                      where cls.relname = 'scan_events'
+                        and con.conname = 'scan_events_target_check_v2') then
+    alter table scan_events
+      add constraint scan_events_target_check_v2
+      check (target in ('products','pos','inventory','product','purchase','returns'));
+  end if;
+end $$;
 
 -- ---------- Realtime ----------
 -- آمن لإعادة التشغيل: لا يضيف الجدول إن كان مضافاً مسبقاً

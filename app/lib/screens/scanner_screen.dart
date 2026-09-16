@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:vibration/vibration.dart';
 import '../services/scan_service.dart';
 
 class ScannerScreen extends StatefulWidget {
@@ -20,24 +20,44 @@ class _ScannerScreenState extends State<ScannerScreen> {
   double _qty = 1;
 
   Future<void> _onDetect(BarcodeCapture cap) async {
-    if (_busy) return;
-    final raw = cap.barcodes.firstOrNull?.rawValue;
+    if (_busy || cap.barcodes.isEmpty) return;
+    final raw = cap.barcodes.first.rawValue;
     if (raw == null || raw.isEmpty) return;
     final code = ScanService.clean(raw);
+    if (code.isEmpty) return;
     final now = DateTime.now();
     // منع تكرار نفس الباركود خلال ثانيتين
     if (code == _last && now.difference(_lastAt).inMilliseconds < 2000) return;
-    _last = code; _lastAt = now; _busy = true;
-    if (await Vibration.hasVibrator() ?? false) Vibration.vibrate(duration: 60);
-
-    final product = await ScanService.lookup(code);
-    final ok = await ScanService.send(code, target: widget.target, qty: _qty);
-    setState(() { _history.insert(0, _Scan(code, product, ok)); if (_history.length > 50) _history.removeLast(); });
-    if (!_continuous) { _ctrl.stop(); }
-    _busy = false;
+    _last = code;
+    _lastAt = now;
+    _busy = true;
+    try {
+      try {
+        await HapticFeedback.mediumImpact(); // اهتزاز/لمسة تأكيد عند المسح
+      } catch (_) {/* بعض الأجهزة لا تدعم الاهتزاز */}
+      Map<String, dynamic>? product;
+      try {
+        product = await ScanService.lookup(code);
+      } catch (_) {
+        product = null; // لا يمنع الإرسال/الحفظ المحلي
+      }
+      final ok = await ScanService.send(code, target: widget.target, qty: _qty);
+      if (!mounted) return;
+      setState(() {
+        _history.insert(0, _Scan(code, product, ok));
+        if (_history.length > 50) _history.removeLast();
+      });
+    } finally {
+      if (!_continuous) {
+        try { await _ctrl.stop(); } catch (_) {}
+      }
+      _busy = false;
+    }
     if (!_continuous && mounted) {
-      await showModalBottomSheet(context: context, builder: (_) => _sheet(product, code, ok));
-      _ctrl.start();
+      await showModalBottomSheet(context: context, builder: (_) => _sheet(_history.first.product, code, _history.first.sent));
+      if (mounted) {
+        try { await _ctrl.start(); } catch (_) {}
+      }
     }
   }
 

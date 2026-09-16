@@ -22,9 +22,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _load() async {
     final db = Supabase.instance.client;
-    final p = await db.from('profiles').select('full_name').eq('id', db.auth.currentUser!.id).maybeSingle();
-    final q = await ScanService.queueLength();
-    if (mounted) setState(() { _name = p?['full_name'] ?? db.auth.currentUser!.email ?? ''; _queue = q; });
+    final user = db.auth.currentUser;
+    String name = user?.email ?? '';
+    int queue = 0;
+    try {
+      final p = await db.from('profiles').select('full_name,is_active').eq('id', user!.id).maybeSingle();
+      name = p?['full_name'] ?? name;
+      if (p?['is_active'] == false) {
+        await db.auth.signOut();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تعطيل حسابك. تواصل مع المدير'), backgroundColor: Colors.red));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+        return;
+      }
+    } catch (_) {/* تعذّر الاتصال - نُكمل بالبيانات المتاحة */}
+    try {
+      queue = await ScanService.queueLength();
+    } catch (_) {}
+    if (mounted) setState(() { _name = name; _queue = queue; });
   }
 
   Widget _mode(BuildContext c, {required String title, required String sub, required IconData icon, required Color color, required String target}) => Card(

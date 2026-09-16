@@ -1,4 +1,4 @@
-# بناء APK تلقائياً ونشره في إصدار دائم "latest"
+# بناء تطبيق أندرويد (APK) ونشره في إصدار دائم باسم "latest"
 # رابط التحميل الثابت:
 # https://github.com/TaharBn12/t123/releases/download/latest/cashier-scanner.apk
 name: Build APK
@@ -6,6 +6,8 @@ name: Build APK
 on:
   push:
     branches: [main]
+    paths: ['app/**', '.github/workflows/build-apk.yml']
+  pull_request:
     paths: ['app/**', '.github/workflows/build-apk.yml']
   workflow_dispatch:
 
@@ -31,19 +33,51 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate platform files (keeps our custom android config)
-        run: |
-          flutter create --org com.cashierpro --project-name cashier_scanner --platforms android . 
-          git checkout -- android/app/src/main/AndroidManifest.xml android/app/build.gradle android/settings.gradle android/build.gradle android/gradle.properties android/gradle/wrapper/gradle-wrapper.properties lib/ pubspec.yaml || true
-          rm -f android/app/build.gradle.kts android/build.gradle.kts android/settings.gradle.kts
+      # تسريع البناء: تخزين مؤقت لمكتبات Gradle (يُحفظ حتى لو فشل البناء)
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('app/pubspec.yaml') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # ملفات منصة أندرويد (Gradle wrapper، أيقونات التطبيق، ملفات البناء) تُولَّد
+      # بأحدث قوالب Flutter متوافقة مع إصدار Flutter المثبّت أعلاه، ثم نُعيد ملفاتنا
+      # المخصّصة (AndroidManifest / MainActivity / styles) من المستودع.
+      - name: Prepare Android platform files
+        run: bash tool/prepare_android.sh
 
       - run: flutter pub get
-      - run: flutter build apk --release
+
+      - name: Analyze (لا يُوقف البناء)
+        continue-on-error: true
+        run: flutter analyze || true
+
+      - name: Build release APK
+        run: flutter build apk --release
 
       - name: Rename APK
         run: cp build/app/outputs/flutter-apk/app-release.apk cashier-scanner.apk
 
+      - uses: actions/cache/save@v4
+        if: always()
+        continue-on-error: true
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('app/pubspec.yaml') }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cashier-scanner-apk
+          path: app/cashier-scanner.apk
+
+      # النشر فقط عند الدمج في main أو التشغيل اليدوي (لا في طلبات السحب)
       - name: Publish to permanent "latest" release
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest

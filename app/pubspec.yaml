@@ -12,8 +12,6 @@ dependencies:
   supabase_flutter: ^2.5.0
   mobile_scanner: ^5.1.1
   shared_preferences: ^2.2.3
-  audioplayers: ^6.0.0
-  vibration: ^2.0.0
   device_info_plus: ^10.1.0
   google_fonts: ^6.2.1
 

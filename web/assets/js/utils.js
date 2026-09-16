@@ -45,12 +45,22 @@ const U = {
     const csv = '\uFEFF' + [keys.join(','), ...rows.map(r=>keys.map(k=>`"${String(r[k]??'').replace(/"/g,'""')}"`).join(','))].join('\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download=filename; a.click();
   },
-  print(html, title='طباعة'){
-    const w = window.open('', '_blank', 'width=420,height=700');
+  // فتح نافذة طباعة. مهم: لا نستخدم سكربتاً مضمّناً داخل النافذة لأن سياسة CSP
+  // تورَّث للنافذة الجديدة فيمنع تشغيله — بل نستدعي print() من هذه الصفحة نفسها.
+  printFrame(html, {title='طباعة', style='', width=420, height=700}={}){
+    let w = null;
+    try{ w = window.open('', '_blank', `width=${width},height=${height}`); }catch(e){ w = null; }
+    if(!w){ U.toast('اسمح بالنوافذ المنبثقة (Pop-ups) لإتمام الطباعة','error'); return null; }
     w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${U.esc(title)}</title>
-    <style>body{font-family:Tahoma,Arial;font-size:13px;width:80mm;margin:0 auto;padding:8px;color:#000}h2{text-align:center;margin:4px 0}table{width:100%;border-collapse:collapse}td,th{padding:3px 2px;text-align:right;border-bottom:1px dashed #999}.c{text-align:center}.tot{font-weight:bold;font-size:15px}hr{border:0;border-top:1px dashed #000}</style></head><body>${html}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}<\/script></body></html>`);
+    <style>body{font-family:Tahoma,Arial;font-size:13px;width:80mm;margin:0 auto;padding:8px;color:#000}h2{text-align:center;margin:4px 0}table{width:100%;border-collapse:collapse}td,th{padding:3px 2px;text-align:right;border-bottom:1px dashed #999}.c{text-align:center}.tot{font-weight:bold;font-size:15px}hr{border:0;border-top:1px dashed #000}${style}</style></head><body>${html}</body></html>`);
     w.document.close();
+    let done = false;
+    const go = ()=>{ if(done) return; done = true; try{ w.focus(); w.print(); setTimeout(()=>{ try{ w.close(); }catch(e){} }, 500); }catch(e){} };
+    try{ w.addEventListener('load', ()=>setTimeout(go,150)); }catch(e){}
+    setTimeout(go, 700); // شبكة أمان لو لم يُطلق حدث load
+    return w;
   },
+  print(html, title='طباعة'){ return U.printFrame(html, {title}); },
   async log(action, entity, entity_id, details){ try{ await db.from('activity_logs').insert({action, entity, entity_id: entity_id?String(entity_id):null, details}); }catch(e){} }
 };
 window.U = U;

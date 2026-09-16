@@ -25,7 +25,10 @@ class ScanService {
   }
 
   /// تنظيف الباركود (حماية من الحقن)
-  static String clean(String s) => s.replaceAll(RegExp(r'[^A-Za-z0-9\-_.]'), '').substring(0, s.length > 64 ? 64 : s.length);
+  static String clean(String s) {
+    final c = s.replaceAll(RegExp(r'[^A-Za-z0-9\-_.]'), '');
+    return c.length > 64 ? c.substring(0, 64) : c;
+  }
 
   static Future<Map<String, dynamic>?> lookup(String barcode) async {
     final r = await _db.from('products').select('id,name,sale_price,stock,unit,image_url').eq('barcode', barcode).maybeSingle();

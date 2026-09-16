@@ -20,6 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
     } on AuthException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message.contains('Invalid') ? 'بيانات الدخول غير صحيحة' : e.message), backgroundColor: Colors.red));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذّر الاتصال بالخادم، تحقق من الإنترنت'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

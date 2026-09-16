@@ -2,7 +2,7 @@ initPage('نقطة البيع', null, async (c)=>{
   let products=[], cats=[], cart=[], customer=null, pay='cash', discount={type:'fixed',value:0}, shift=null;
   const taxRate = U.toNum(STORE.tax_rate);
   // الوردية المفتوحة
-  const {data:sh} = await db.from('shifts').select('*').eq('user_id',Auth.user.id).eq('status','open').maybeSingle(); shift=sh;
+  const {data:sh} = await db.from('shifts').select('*').eq('user_id',Auth.user.id).eq('status','open').order('opened_at',{ascending:false}).limit(1).maybeSingle(); shift=sh;
   c.innerHTML = `<div class="pos-layout">
    <div class="pos-products">
     <div class="flex gap mb wrap"><div class="grow flex gap" style="background:var(--card);border:2px solid var(--primary);border-radius:12px;padding:0 12px"><i class="fa-solid fa-barcode" style="color:var(--primary)"></i><input id="scanInput" placeholder="امسح الباركود أو ابحث بالاسم (Enter)" style="flex:1;border:0;padding:12px;background:none;outline:0;font-size:15px" autofocus autocomplete="off"></div>
@@ -34,7 +34,7 @@ initPage('نقطة البيع', null, async (c)=>{
   const renderGrid=(cat, q='')=>{ const list=products.filter(p=>(!cat||p.category_id===cat)&&(!q||p.name.includes(q)||(p.barcode||'').includes(q))).slice(0,200);
     U.qs('#pgrid').innerHTML = list.map(p=>`<div class="p-card" data-id="${p.id}"><span class="badge ${+p.stock<=0?'danger':+p.stock<5?'warning':'success'} stk">${U.num(p.stock)}</span><div class="pimg">${p.image_url?`<img src="${U.esc(p.image_url)}" loading="lazy">`:'📦'}</div><b title="${U.esc(p.name)}">${U.esc(p.name)}</b><span class="price">${U.money(p.sale_price)}</span></div>`).join('')||'<div class="empty">لا منتجات</div>';
     U.qsa('.p-card').forEach(el=>el.onclick=()=>add(products.find(p=>p.id===el.dataset.id))); };
-  const add=(p,qty=1)=>{ if(!p) return; if(+p.stock<=0 && !STORE.allow_negative){ U.toast(`المنتج "${p.name}" غير متوفر بالمخزون`,'error'); }
+  const add=(p,qty=1)=>{ if(!p) return; if(+p.stock<=0 && !STORE.allow_negative){ U.toast(`المنتج "${p.name}" غير متوفر بالمخزون`,'error'); return; }
     const it=cart.find(i=>i.id===p.id); if(it) it.qty+=qty; else cart.push({id:p.id,name:p.name,barcode:p.barcode,price:+p.sale_price,qty,stock:+p.stock,tax_rate:+p.tax_rate||0});
     beep(); renderCart(); };
   const beep=()=>{ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); const o=a.createOscillator(); o.frequency.value=880; o.connect(a.destination); o.start(); o.stop(a.currentTime+.08);}catch(e){} };

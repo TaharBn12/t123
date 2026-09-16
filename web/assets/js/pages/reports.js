@@ -1,6 +1,6 @@
 initPage('التقارير', ['admin','manager'], async (c)=>{
   const first=new Date(); first.setDate(1);
-  c.innerHTML=`<div class="toolbar"><input class="input" type="date" id="d1" value="${first.toISOString().slice(0,10)}"><input class="input" type="date" id="d2" value="${U.today()}"><button class="btn" id="run"><i class="fa-solid fa-play"></i> عرض</button><div class="grow"></div><button class="btn ghost" onclick="print()"><i class="fa-solid fa-print"></i> طباعة</button></div>
+  c.innerHTML=`<div class="toolbar"><input class="input" type="date" id="d1" value="${first.toISOString().slice(0,10)}"><input class="input" type="date" id="d2" value="${U.today()}"><button class="btn" id="run"><i class="fa-solid fa-play"></i> عرض</button><div class="grow"></div><button class="btn ghost" id="prt"><i class="fa-solid fa-print"></i> طباعة</button></div>
    <div class="tabs mb" id="tabs"><button class="active" data-t="sales">المبيعات</button><button data-t="products">المنتجات</button><button data-t="profit">الأرباح</button><button data-t="cashiers">الكاشير</button><button data-t="customers">العملاء</button></div><div id="out"></div>`;
   let tab='sales'; U.qsa('#tabs button').forEach(b=>b.onclick=()=>{U.qsa('#tabs button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); tab=b.dataset.t; run();});
   const dark=()=>document.documentElement.dataset.theme==='dark'; const colors=['#6366f1','#10b981','#f59e0b','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#14b8a6'];
@@ -28,5 +28,6 @@ initPage('التقارير', ['admin','manager'], async (c)=>{
       new Chart(U.qs('#c1'),{type:'bar',data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>r[1].t),backgroundColor:colors,borderRadius:8}]},options:{plugins:{legend:{display:false}},maintainAspectRatio:false}}); }
     if(tab==='customers'){ const agg={}; S.forEach(s=>{const k=s.customers?.name||'زبون عام'; agg[k]=agg[k]||{n:0,t:0}; agg[k].n++; agg[k].t+= +s.total;}); const rows=Object.entries(agg).sort((a,b)=>b[1].t-a[1].t);
       out.innerHTML=`<div class="card"><h3 class="mb">أفضل العملاء</h3><div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>الزبون</th><th>الفواتير</th><th>المشتريات</th><th>متوسط</th></tr></thead><tbody>${rows.slice(0,50).map(([n,v],i)=>`<tr><td>${i+1}</td><td><b>${U.esc(n)}</b></td><td>${v.n}</td><td>${U.money(v.t)}</td><td>${U.money(v.t/v.n)}</td></tr>`).join('')}</tbody></table></div></div>`; } };
+  U.qs('#prt').onclick=()=>window.print(); // كانت onclick مضمّنة وتمنعها سياسة CSP
   U.qs('#run').onclick=run; run();
 });

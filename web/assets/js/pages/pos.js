@@ -89,14 +89,13 @@ initPage('نقطة البيع', null, async (c)=>{
   clr.onclick=()=>{ si.value=''; toggleClear(); renderGrid(U.qs('#cats .active')?.dataset.c||''); si.focus(); };
   si.addEventListener('input',()=>{ toggleClear(); searchNow(); });
   document.addEventListener('keydown',e=>{ if(e.key==='F9'){e.preventDefault(); U.qs('#payBtn').click();} if(e.key==='F2'){e.preventDefault(); si.focus();} });
-  // استقبال من الهاتف عبر Realtime
-  const ch = db.channel('pos-scan').on('postgres_changes',{event:'INSERT',schema:'public',table:'scan_events'},async ({new:ev})=>{
-    if(!U.qs('#liveScan').checked || ev.target!=='pos') return;
-    let p=products.find(x=>x.barcode===ev.barcode);
-    if(!p){ const {data}=await db.from('products').select('id,name,barcode,sale_price,stock,category_id,image_url,tax_rate').eq('barcode',ev.barcode).maybeSingle(); if(data){products.push(data); p=data;} }
-    if(p){ add(p,+ev.quantity||1); U.toast(p.name,'info','fa-mobile-screen'); } else U.toast('باركود غير معروف من الهاتف: '+ev.barcode,'error');
-    db.from('scan_events').update({consumed:true}).eq('id',ev.id).then(()=>{});
-  }).subscribe(s=>{ U.qs('#rtDot').classList.toggle('off', s!=='SUBSCRIBED'); });
+  // استقبال من الهاتف عبر Realtime - قناة «pos» الخاصة بنقطة البيع
+  ScanBridge.connect({target:'pos', pillId:'rt', toggle:U.qs('#liveScan'), onScan:async (barcode, ev)=>{
+    let p=products.find(x=>x.barcode===barcode);
+    if(!p){ const {data}=await db.from('products').select('id,name,barcode,sale_price,stock,min_stock,category_id,image_url,tax_rate,unit').eq('barcode',barcode).maybeSingle(); if(data){products.push(data); p=data;} }
+    if(p){ add(p,U.toNum(ev.quantity,1)); U.toast(p.name,'info','fa-mobile-screen'); }
+    else U.toast('باركود غير معروف من الهاتف: '+barcode,'error');
+  }});
   // إتمام البيع
   U.qs('#payBtn').onclick=async()=>{ if(!cart.length) return U.toast('السلة فارغة','info'); const t=calc(); let paid=U.toNum(U.qs('#paid').value); const cid=U.qs('#custSel').value||null;
     if(pay==='credit' && !cid) return U.toast('اختر زبوناً للبيع الآجل','error');

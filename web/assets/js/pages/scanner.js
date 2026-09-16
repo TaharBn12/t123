@@ -3,7 +3,7 @@ initPage('استقبال المسح من الهاتف', null, async (c)=>{
   let mode = localStorage.getItem('scanMode')||'view', items=[], deviceCount=0;
   c.innerHTML = `
   <div class="scan-hero"><div class="pulse"><i class="fa-solid fa-barcode"></i></div><div class="grow"><h2 style="font-size:20px">جاهز لاستقبال المسح</h2><p style="opacity:.85">افتح تطبيق الماسح على هاتفك وسجّل الدخول بنفس الحساب، وستظهر المنتجات هنا فور مسحها</p>
-    <div class="flex gap mt wrap"><span class="online" id="rt" style="color:#fff">الاتصال المباشر</span><span class="badge" style="background:rgba(255,255,255,.2);color:#fff" id="cnt">0 عملية مسح</span></div></div>
+    <div class="flex gap mt wrap"><span class="online" id="rtDot" style="color:#fff">الاتصال المباشر</span><span class="badge" style="background:rgba(255,255,255,.2);color:#fff" id="cnt">0 عملية مسح</span><span class="badge" style="background:rgba(255,255,255,.2);color:#fff">الوجهة: <b id="destName">استقبال المسح</b></span></div></div>
     <div style="text-align:center;background:rgba(255,255,255,.15);padding:12px 16px;border-radius:12px"><small>معرّف الجلسة</small><b style="display:block;font-size:13px;direction:ltr">${U.esc(Auth.user.email)}</b></div></div>
   <div class="card"><div class="card-head"><h3>وضع الاستقبال</h3><div class="flex gap wrap">
     <div class="tabs" style="margin:0"><button data-m="view" class="${mode==='view'?'active':''}"><i class="fa-solid fa-eye"></i> عرض المنتج</button><button data-m="inventory" class="${mode==='inventory'?'active':''}"><i class="fa-solid fa-clipboard-list"></i> جرد سريع</button><button data-m="collect" class="${mode==='collect'?'active':''}"><i class="fa-solid fa-layer-group"></i> تجميع قائمة</button></div>
@@ -36,8 +36,11 @@ initPage('استقبال المسح من الهاتف', null, async (c)=>{
     else items.unshift({barcode,product:p,count:qty,at});
     if(items.length>100) items.pop(); beep(!!p); render(); loadHistory(); };
   // Realtime
-  db.channel('scanner-page').on('postgres_changes',{event:'INSERT',schema:'public',table:'scan_events'},({new:ev})=>{ if(ev.target==='pos') return; handle(ev.barcode,+ev.quantity||1,ev.created_at); db.from('scan_events').update({consumed:true}).eq('id',ev.id).then(()=>{}); })
-    .subscribe(s=>U.qs('#rt').classList.toggle('off',s!=='SUBSCRIBED'));
+  // هذه الصفحة لها وجهة خاصة: تستقبل فقط ما يُرسل إليها (افتراضياً «products»)
+  // بقية الوجهات (pos/product/purchase/inventory/returns) تذهب لصفحاتها مباشرة
+  const wantTarget = U.param('target') || 'products';
+  U.qs('#destName').textContent = ScanBridge.label(wantTarget);
+  ScanBridge.connect({target:wantTarget, pillId:'rt', onScan:async (barcode, ev)=>handle(barcode, U.toNum(ev.quantity,1), ev.created_at)});
   // دعم ماسح USB أيضاً (كتابة سريعة + Enter)
   let buf='',last=0; document.addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return; const now=Date.now(); if(now-last>100) buf=''; last=now; if(e.key==='Enter'){ if(buf.length>=3) handle(buf); buf=''; } else if(e.key.length===1) buf+=e.key; });
   U.qs('#manual').onclick=()=>formModal({title:'إدخال باركود يدوياً',fields:[{name:'barcode',label:'الباركود',required:true},{name:'qty',label:'الكمية',type:'number',default:1}],onSubmit:async d=>handle(d.barcode,d.qty||1)});

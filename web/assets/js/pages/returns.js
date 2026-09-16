@@ -1,5 +1,5 @@
 initPage('المرتجعات', null, async (c)=>{
-  c.innerHTML=`<div class="card"><div class="card-head"><h3><i class="fa-solid fa-rotate-left"></i> مرتجع جديد</h3></div><div class="flex gap"><input class="input" id="sn" placeholder="رقم الفاتورة أو امسح الباركود" style="max-width:300px"><button class="btn" id="find"><i class="fa-solid fa-magnifying-glass"></i> بحث</button></div><div id="ret" class="mt"></div></div><div id="tbl"></div>`;
+  c.innerHTML=`<div class="card"><div class="card-head"><h3><i class="fa-solid fa-rotate-left"></i> مرتجع جديد</h3>${ScanBridge.pill('returns')}</div><div class="flex gap"><input class="input" id="sn" placeholder="رقم الفاتورة أو امسح الباركود" style="max-width:300px"><button class="btn" id="find"><i class="fa-solid fa-magnifying-glass"></i> بحث</button></div><div id="ret" class="mt"></div></div><div id="tbl"></div>`;
   const dt=new DataTable({el:U.qs('#tbl'),table:'returns',select:'*,sales(sale_number),profiles(full_name),return_items(quantity)',title:'سجل المرتجعات',columns:[{label:'التاريخ',render:r=>U.date(r.created_at),raw:r=>r.created_at},{label:'الفاتورة',render:r=>`<a href="sale-details.html?id=${r.sale_id}"><b>#${r.sales?.sale_number||''}</b></a>`,raw:r=>r.sales?.sale_number},{label:'الأصناف',render:r=>r.return_items?.length||0,raw:r=>r.return_items?.length},{label:'المبلغ',render:r=>`<b style="color:var(--danger)">${U.money(r.total)}</b>`,raw:r=>r.total},{label:'السبب',key:'reason'},{label:'بواسطة',render:r=>U.esc(r.profiles?.full_name||''),raw:r=>r.profiles?.full_name}]});
   const show=async(sale)=>{ const {data:prev}=await db.from('return_items').select('product_id,quantity,returns!inner(sale_id)').eq('returns.sale_id',sale.id); const done={}; (prev||[]).forEach(p=>done[p.product_id]=(done[p.product_id]||0)+ +p.quantity);
     U.qs('#ret').innerHTML=`<div class="flex between mb"><b>فاتورة #${sale.sale_number} · ${U.date(sale.created_at)} · ${U.money(sale.total)}</b><span class="badge ${sale.status==='completed'?'success':'warning'}">${sale.status}</span></div><div class="table-wrap"><table class="table"><thead><tr><th>الصنف</th><th>الكمية المباعة</th><th>مرتجع سابقاً</th><th>السعر</th><th>كمية الإرجاع</th></tr></thead><tbody>${sale.sale_items.map(i=>{const mx=+i.quantity-(done[i.product_id]||0); return `<tr><td>${U.esc(i.product_name)}</td><td>${U.num(i.quantity)}</td><td>${done[i.product_id]||0}</td><td>${U.money(i.unit_price)}</td><td><input type="number" class="input" min="0" max="${mx}" step="any" value="0" data-i="${i.id}" style="width:90px" ${mx<=0?'disabled':''}></td></tr>`}).join('')}</tbody></table></div><div class="form-row mt"><input class="input" id="reason" placeholder="سبب الإرجاع"><button class="btn danger" id="doRet"><i class="fa-solid fa-check"></i> تأكيد الإرجاع</button></div>`;
@@ -10,7 +10,20 @@ initPage('المرتجعات', null, async (c)=>{
       for(const x of items) if(x.item.product_id) await db.rpc('adjust_stock',{p_product_id:x.item.product_id,p_qty:x.qty,p_type:'return',p_ref:r.id});
       const full=items.length===sale.sale_items.length&&items.every(x=>x.qty>=x.max); await db.from('sales').update({status:full?'refunded':'partial_refund'}).eq('id',sale.id);
       U.log('return','sales',sale.id,{total}); U.toast('تم تسجيل المرتجع'); U.qs('#ret').innerHTML=''; U.qs('#sn').value=''; dt.load(); }; };
-  const find=async()=>{ const v=U.qs('#sn').value.trim(); if(!v) return; let q=db.from('sales').select('*,sale_items(*)'); q=/^\d+$/.test(v)?q.eq('sale_number',+v):q.eq('id',v); const {data}=await q.maybeSingle(); if(!data) return U.toast('الفاتورة غير موجودة','error'); if(data.status==='cancelled'||data.status==='refunded') return U.toast('هذه الفاتورة ملغاة أو مرتجعة بالكامل','error'); show(data); };
+  // البحث يقبل: رقم الفاتورة، أو معرّفها، أو باركود منتج (يَجلب آخر فاتورة تحويه)
+  const find=async()=>{ const v=U.qs('#sn').value.trim(); if(!v) return; let data=null;
+    if(/^\d+$/.test(v)){ const r=await db.from('sales').select('*,sale_items(*)').eq('sale_number',+v).maybeSingle(); data=r.data; }
+    else if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)){ const r=await db.from('sales').select('*,sale_items(*)').eq('id',v).maybeSingle(); data=r.data; }
+    else { const pr=await ScanBridge.productByBarcode(v);
+      if(!pr) return U.toast('لا يوجد منتج ولا فاتورة بهذا الباركود','error','fa-barcode');
+      const {data:rec}=await db.from('sales').select('*,sale_items(*)').order('created_at',{ascending:false}).limit(40);
+      data=(rec||[]).find(x=>(x.sale_items||[]).some(i=>i.product_id===pr.id))||null;
+      if(!data) return U.toast(`لم تُعثر على فاتورة تحتوي «${pr.name}»`,'error'); }
+    if(!data) return U.toast('الفاتورة غير موجودة','error');
+    if(data.status==='cancelled'||data.status==='refunded') return U.toast('هذه الفاتورة ملغاة أو مرتجعة بالكامل','error');
+    show(data); };
   U.qs('#find').onclick=find; U.qs('#sn').onkeydown=e=>e.key==='Enter'&&find();
+  // === قناة المسح الخاصة بالمرتجعات ===
+  ScanBridge.connect({target:'returns', pillId:'scanPill', onScan:async (barcode)=>{ U.qs('#sn').value=barcode; await find(); }});
   if(U.param('sale')){ U.qs('#sn').value=U.param('sale'); find(); }
 });

@@ -134,6 +134,12 @@ table.table{width:100%;border-collapse:collapse;min-width:600px}
 .cats button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .cats button.active i,.cats button.active .cc{color:#fff}
 .cats button.active .cc{background:rgba(255,255,255,.22)}
+/* شارة «استقبال من الهاتف» - تظهر في كل صفحة لها قناة مسح خاصة */
+.scan-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:20px;background:var(--bg);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.scan-pill>i{color:var(--primary);font-size:13px}
+.scan-pill b{color:var(--text)}
+.scan-pill .online{font-size:0}
+.scan-pill .online:before{width:9px;height:9px}
 /* صندوق البحث/المسح */
 .scan-box{background:var(--card);border:2px solid var(--primary);border-radius:12px;padding:0 12px}
 .scan-box>i{color:var(--primary);font-size:16px}

@@ -16,8 +16,109 @@ class _ScannerScreenState extends State<ScannerScreen> {
   final List<_Scan> _history = [];
   String? _last;
   DateTime _lastAt = DateTime(2000);
-  bool _continuous = true, _torch = false, _busy = false;
+  bool _continuous = true, _busy = false;
   double _qty = 1;
+
+  // ===== التعامل مع أعطال الكاميرا =====
+  // سابقاً كان أي عطل يظهر كشاشة سوداء مع علامة تعجّب فقط (وهو widget الخطأ
+  // الافتراضي في mobile_scanner) دون سبب. الآن نعرض السبب بالعربية + زر إعادة تشغيل.
+  Future<void> _restart() async {
+    try {
+      await _ctrl.stop();
+    } catch (_) {}
+    try {
+      await _ctrl.start();
+    } catch (e) {
+      _snack('تعذّر تشغيل الكاميرا: $e');
+    }
+  }
+
+  Future<void> _toggleTorch() async {
+    try {
+      await _ctrl.toggleTorch();
+    } catch (_) {
+      _snack('الكشاف غير متاح في هذا الجهاز');
+    }
+  }
+
+  Future<void> _switchCamera() async {
+    try {
+      await _ctrl.switchCamera();
+    } catch (_) {
+      _snack('تعذّر تبديل الكاميرا');
+    }
+  }
+
+  void _snack(String m) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  /// شاشة بديلة أثناء تهيئة الكاميرا (بدل السواد الصامت)
+  Widget _cameraPlaceholder(BuildContext context) => const ColoredBox(
+        color: Colors.black,
+        child: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 14),
+            Text('جارٍ تشغيل الكاميرا...', style: TextStyle(color: Colors.white70)),
+          ]),
+        ),
+      );
+
+  /// يعرض سبب فشل الكاميرا بدقّة (صلاحية/غير مدعوم/...) بدل علامة التعجّب الغامضة
+  Widget _cameraError(BuildContext context, MobileScannerException error) {
+    String title = 'تعذّر تشغيل الكاميرا';
+    String hint = 'أغلق أي تطبيق آخر يستخدم الكاميرا ثم أعد المحاولة';
+    switch (error.errorCode) {
+      case MobileScannerErrorCode.permissionDenied:
+        title = 'الوصول إلى الكاميرا مرفوض';
+        hint = 'افتح إعدادات التطبيق ← الأذونات ← الكاميرا، ثم أعد فتح التطبيق';
+        break;
+      case MobileScannerErrorCode.unsupported:
+        title = 'المسح غير مدعوم على هذا الجهاز';
+        hint = 'لا توجد كاميرا صالحة للاستخدام، أو أن تطبيقاً آخر يستحوذ عليها';
+        break;
+      case MobileScannerErrorCode.controllerInitializing:
+        title = 'الكاميرا قيد التهيئة';
+        hint = 'انتظر لحظة ثم اضغط إعادة التشغيل';
+        break;
+      case MobileScannerErrorCode.controllerUninitialized:
+      case MobileScannerErrorCode.controllerNotAttached:
+        title = 'الكاميرا لم تُشغَّل';
+        hint = 'اضغط «إعادة تشغيل الكاميرا» بالأسفل';
+        break;
+      case MobileScannerErrorCode.controllerDisposed:
+        title = 'أُغلقت الكاميرا';
+        hint = 'أعد فتح صفحة المسح';
+        break;
+      case MobileScannerErrorCode.controllerAlreadyInitialized:
+      case MobileScannerErrorCode.genericError:
+        title = 'تعذّر تشغيل الكاميرا';
+        hint = 'أغلق أي تطبيق آخر يستخدم الكاميرا ثم أعد المحاولة';
+        break;
+    }
+    return ColoredBox(
+      color: Colors.black,
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.no_photography_outlined, color: Colors.white70, size: 46),
+            const SizedBox(height: 14),
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text(hint, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            const SizedBox(height: 12),
+            // السبب التقني كما أرسلته الحزمة - مهم للتشخيص
+            Text('${error.errorCode.name}: ${error.errorDetails?.message ?? ''}',
+                textAlign: TextAlign.center, textDirection: TextDirection.ltr, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+            const SizedBox(height: 18),
+            FilledButton.icon(onPressed: _restart, icon: const Icon(Icons.refresh), label: const Text('إعادة تشغيل الكاميرا')),
+          ]),
+        ),
+      ),
+    );
+  }
 
   Future<void> _onDetect(BarcodeCapture cap) async {
     if (_busy || cap.barcodes.isEmpty) return;
@@ -82,12 +183,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title), actions: [
-        IconButton(icon: Icon(_torch ? Icons.flash_on : Icons.flash_off), onPressed: () { _ctrl.toggleTorch(); setState(() => _torch = !_torch); }),
-        IconButton(icon: const Icon(Icons.cameraswitch), onPressed: () => _ctrl.switchCamera()),
+        // حالة الكشاف تُقرأ من حالة الكاميرا الفعلية بدل متغيّر محلي قد يختلف عنها
+        ValueListenableBuilder<MobileScannerState>(
+          valueListenable: _ctrl,
+          builder: (context, state, _) => IconButton(
+            tooltip: 'الكشاف',
+            icon: Icon(state.torchState == TorchState.on ? Icons.flash_on : Icons.flash_off),
+            onPressed: state.torchState == TorchState.unavailable ? null : _toggleTorch,
+          ),
+        ),
+        IconButton(icon: const Icon(Icons.cameraswitch), tooltip: 'تبديل الكاميرا', onPressed: _switchCamera),
       ]),
       body: Column(children: [
         Expanded(flex: 5, child: Stack(fit: StackFit.expand, children: [
-          MobileScanner(controller: _ctrl, onDetect: _onDetect),
+          MobileScanner(controller: _ctrl, onDetect: _onDetect, errorBuilder: _cameraError, placeholderBuilder: _cameraPlaceholder),
           Center(child: Container(width: 260, height: 160, decoration: BoxDecoration(border: Border.all(color: const Color(0xFF4F46E5), width: 3), borderRadius: BorderRadius.circular(16)))),
           Positioned(bottom: 12, left: 12, right: 12, child: Row(children: [
             Expanded(child: Card(color: Colors.black54, child: SwitchListTile(dense: true, title: const Text('مسح متواصل', style: TextStyle(color: Colors.white, fontSize: 13)), value: _continuous, onChanged: (v) => setState(() => _continuous = v)))),

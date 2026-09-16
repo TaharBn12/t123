@@ -1,0 +1,26 @@
+name: cashier_scanner
+description: تطبيق ماسح الباركود لنظام كاشير برو - يرسل عمليات المسح لحظياً إلى الموقع
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.5.0
+  mobile_scanner: ^5.1.1
+  shared_preferences: ^2.2.3
+  audioplayers: ^6.0.0
+  vibration: ^2.0.0
+  device_info_plus: ^10.1.0
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

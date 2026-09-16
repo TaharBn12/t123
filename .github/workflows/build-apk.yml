@@ -1,0 +1,58 @@
+# بناء APK تلقائياً ونشره في إصدار دائم "latest"
+# رابط التحميل الثابت:
+# https://github.com/TaharBn12/t123/releases/download/latest/cashier-scanner.apk
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/build-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate platform files (keeps our custom android config)
+        run: |
+          flutter create --org com.cashierpro --project-name cashier_scanner --platforms android . 
+          git checkout -- android/app/src/main/AndroidManifest.xml android/app/build.gradle android/settings.gradle android/build.gradle android/gradle.properties android/gradle/wrapper/gradle-wrapper.properties lib/ pubspec.yaml || true
+          rm -f android/app/build.gradle.kts android/build.gradle.kts android/settings.gradle.kts
+
+      - run: flutter pub get
+      - run: flutter build apk --release
+
+      - name: Rename APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk cashier-scanner.apk
+
+      - name: Publish to permanent "latest" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: ماسح كاشير برو - أحدث إصدار
+          body: |
+            📱 أحدث نسخة من تطبيق الماسح (تُبنى تلقائياً من آخر commit).
+            رابط ثابت: https://github.com/${{ github.repository }}/releases/download/latest/cashier-scanner.apk
+          files: app/cashier-scanner.apk
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -9,6 +9,7 @@ initPage('طباعة الباركود', null, async (c)=>{
     Object.entries(sel).forEach(([id,n])=>{const p=prods.find(x=>x.id===id); for(let i=0;i<n;i++) html+=`<div class="label" style="border:1px dashed #ccc;padding:6px;text-align:center;font-size:11px;width:fit-content">${sn?`<div><b>${U.esc(p.name)}</b></div>`:''}<svg class="bc" data-v="${U.esc(p.barcode)}"></svg>${sp?`<div><b>${U.money(p.sale_price)}</b></div>`:''}</div>`;});
     U.qs('#labels').innerHTML=html||'<div class="empty">اختر منتجات من القائمة</div>'; U.qsa('.bc').forEach(s=>{ try{ JsBarcode(s,s.dataset.v,{width:w,height:h,fontSize:12,margin:2}); }catch(e){} }); };
   U.qs('#q').oninput=U.debounce(renderList); ['#w','#h','#showPrice','#showName'].forEach(s=>U.qs(s).onchange=renderLabels);
-  U.qs('#print').onclick=()=>{ if(!Object.keys(sel).length) return U.toast('اختر منتجات','info'); const w=window.open('','_blank'); w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma;display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:4mm}.label{border:1px dashed #ccc;padding:6px;text-align:center;font-size:11px;page-break-inside:avoid}@media print{.label{border-color:transparent}}</style></head><body>${U.qs('#labels').innerHTML}<script>onload=()=>{print();setTimeout(close,300)}<\/script></body></html>`); w.document.close(); };
+  U.qs('#print').onclick=()=>{ if(!Object.keys(sel).length) return U.toast('اختر منتجات','info');
+    U.printFrame(U.qs('#labels').innerHTML,{title:'ملصقات الباركود',width:900,height:700,style:'body{display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:4mm}.label{border:1px dashed #ccc;padding:6px;text-align:center;font-size:11px;page-break-inside:avoid}@media print{.label{border-color:transparent}}'}); };
   renderList();
 });

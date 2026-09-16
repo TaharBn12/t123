@@ -8,3 +8,19 @@ android/.gradle/
 android/app/.cxx/
 *.iml
 .idea/
+
+# ملفات منصة أندرويد المولَّدة (تُنشأ عبر tool/prepare_android.sh أو في CI)
+android/gradlew
+android/gradlew.bat
+android/gradle/
+android/build.gradle
+android/build.gradle.kts
+android/settings.gradle
+android/settings.gradle.kts
+android/gradle.properties
+android/app/build.gradle
+android/app/build.gradle.kts
+android/app/src/main/res/drawable*/
+android/app/src/main/res/mipmap-*/
+android/app/src/main/res/values-night/
+ci-build-log.txt

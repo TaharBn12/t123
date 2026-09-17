@@ -185,5 +185,60 @@ td .ph-ico{font-size:20px}
 .chart-box{position:relative;height:300px}
 .kbd{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:11px;font-family:monospace}
 @media(max-width:1000px){.pos-layout{grid-template-columns:1fr;height:auto}.pos-grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr 1fr}}
-@media(max-width:768px){.sidebar{position:fixed;right:-270px;height:100vh}.sidebar.open{right:0}.overlay.show{display:block}.content{padding:14px}.quick-search{display:none}.g4,.g3,.g2{grid-template-columns:1fr}.topbar{padding:10px 14px}}
-@media print{.sidebar,.topbar,.no-print{display:none!important}.content{padding:0}}
+@media(max-width:768px){.sidebar,.sidebar.mini{position:fixed;right:-270px;height:100vh;width:260px}.sidebar.open{right:0}.sidebar.mini .brand>div:last-child,.sidebar.mini .nav-sec,.sidebar.mini .nav-item span,.sidebar.mini .sidebar-foot .grow,.sidebar.mini .sidebar-foot .icon-btn{display:revert}.sidebar.mini .brand{justify-content:flex-start;padding:20px 18px}.sidebar.mini .nav-item{justify-content:flex-start;padding:10px 12px}body.rail-hover .sidebar.mini:hover{position:fixed;width:260px;box-shadow:none}.overlay.show{display:block}.content{padding:14px}.quick-search{display:none}.g4,.g3,.g2{grid-template-columns:1fr}.topbar{padding:10px 14px}.table-wrap{max-height:none}}
+@media print{.sidebar,.topbar,.no-print{display:none!important}.content{padding:0}.card{box-shadow:none;break-inside:avoid}}
+/* ===== رتوشات نهائية ===== */
+/* أشرطة تمرير أنيقة في كل التطبيق */
+*{scrollbar-width:thin;scrollbar-color:rgba(100,116,139,.35) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(100,116,139,.35);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,.6)}
+[data-theme=dark] ::-webkit-scrollbar-thumb{background:rgba(148,163,184,.25)}
+::selection{background:rgba(79,70,229,.25)}
+/* حلقة تركيز موحّدة للوصولية */
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.input:focus-visible,.quick-search input:focus-visible,.scan-box input:focus-visible{outline:0}
+/* ظهور ناعم لمحتوى الصفحات */
+.content>*{animation:fadeUp .35s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.content>*{animation:none}*{scroll-behavior:auto!important}}
+/* أزرار: ضغط واضح */
+.btn:active:not(:disabled){transform:translateY(0) scale(.98)}
+.icon-btn:active{transform:scale(.94)}
+/* شريط جانبي مصغّر (سطح المكتب) */
+.sidebar.mini{width:72px}
+.sidebar.mini .brand>div:last-child,.sidebar.mini .nav-sec,.sidebar.mini .nav-item span,.sidebar.mini .sidebar-foot .grow,.sidebar.mini .sidebar-foot .icon-btn{display:none}
+.sidebar.mini .brand{justify-content:center;padding:20px 8px}
+.sidebar.mini .nav-item{justify-content:center;padding:12px 0}
+.sidebar.mini .nav-item i{width:auto;font-size:17px;opacity:1}
+.sidebar.mini .sidebar-foot{justify-content:center;padding:14px 8px}
+body.rail-hover .sidebar.mini:hover{position:fixed;top:0;bottom:0;width:260px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+body.rail-hover .sidebar.mini:hover .brand>div:last-child,body.rail-hover .sidebar.mini:hover .nav-sec,body.rail-hover .sidebar.mini:hover .nav-item span,body.rail-hover .sidebar.mini:hover .sidebar-foot .grow,body.rail-hover .sidebar.mini:hover .sidebar-foot .icon-btn{display:revert}
+body.rail-hover .sidebar.mini:hover .brand{justify-content:flex-start;padding:20px 18px}
+body.rail-hover .sidebar.mini:hover .nav-item{justify-content:flex-start;padding:10px 12px}
+.sidebar-toggle{display:none}
+@media(min-width:769px){.sidebar-toggle{display:grid}}
+/* حقول إدخال بأيقونة (صفحة الدخول وغيرها) */
+.input-ico{position:relative;display:flex;align-items:center}
+.input-ico>i{position:absolute;inset-inline-start:13px;color:var(--muted);font-size:13px;pointer-events:none}
+.input-ico .input{padding-inline-start:38px}
+.input-ico:has(.pass-toggle) .input{padding-inline-end:42px}
+.pass-toggle{position:absolute;inset-inline-end:6px;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:.15s}
+.pass-toggle:hover{color:var(--primary);background:var(--bg)}
+/* صفحة الدخول: أشكال خلفية + مميزات */
+.login-page{position:relative;overflow:hidden}
+.bg-shape{position:absolute;border-radius:50%;filter:blur(70px);opacity:.4;pointer-events:none}
+.bg-shape.s1{width:420px;height:420px;background:#7c3aed;top:-140px;inset-inline-start:-120px;animation:float 9s ease-in-out infinite}
+.bg-shape.s2{width:360px;height:360px;background:#0ea5e9;bottom:-120px;inset-inline-end:-100px;animation:float 11s ease-in-out infinite reverse}
+.bg-shape.s3{width:220px;height:220px;background:#4f46e5;top:40%;inset-inline-end:18%;animation:float 13s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-28px) scale(1.06)}}
+.login-wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:18px;width:100%;max-width:420px;animation:fadeUp .5s ease both}
+.login-wrap .login-card{width:100%}
+.login-card{border:1px solid rgba(255,255,255,.08)}
+.login-feats{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.login-feats span{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#e2e8f0;font-size:12px;font-weight:600;backdrop-filter:blur(6px)}
+.login-feats i{color:#a5b4fc;font-size:11px}
+.login-copy{color:rgba(255,255,255,.45);font-size:11px;text-align:center}
+/* شارات الحالة في الجدول لا تكسر السطر */
+.table td .badge{white-space:nowrap}

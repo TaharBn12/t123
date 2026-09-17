@@ -53,9 +53,11 @@ const U = {
     const ov = document.createElement('div'); ov.className='modal-overlay';
     ov.innerHTML = `<div class="modal ${small?'small':''}">${title?`<div class="modal-head"><h3>${U.esc(title)}</h3><button class="icon-btn close"><i class="fa-solid fa-xmark"></i></button></div>`:''}<div class="modal-content">${html}</div></div>`;
     document.body.appendChild(ov); requestAnimationFrame(()=>ov.classList.add('show'));
-    ov.close = ()=>{ ov.classList.remove('show'); setTimeout(()=>ov.remove(),200); onClose?.(); };
+    const onKey = e=>{ if(e.key==='Escape' && document.querySelector('.modal-overlay:last-of-type')===ov) ov.close(); };
+    ov.close = ()=>{ ov.classList.remove('show'); document.removeEventListener('keydown',onKey); setTimeout(()=>ov.remove(),200); onClose?.(); };
     ov.querySelector('.close')?.addEventListener('click', ov.close);
     ov.addEventListener('click', e=>{ if(e.target===ov) ov.close(); });
+    document.addEventListener('keydown', onKey);
     ov.querySelector = ov.querySelector.bind(ov);
     return ov;
   },

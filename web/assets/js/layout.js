@@ -48,6 +48,7 @@ function renderLayout(title){
   <main class="main">
     <header class="topbar">
       <button class="icon-btn" id="menuBtn"><i class="fa-solid fa-bars"></i></button>
+      <button class="icon-btn sidebar-toggle" id="railBtn" title="طيّ/توسيع القائمة"><i class="fa-solid fa-angles-right"></i></button>
       <h1 class="page-title">${U.esc(title)}</h1>
       <div class="grow"></div>
       <div class="quick-search"><i class="fa-solid fa-magnifying-glass"></i><input id="quickSearch" placeholder="بحث سريع عن منتج / باركود..."><div class="qs-results" id="qsResults"></div></div>
@@ -57,8 +58,22 @@ function renderLayout(title){
     <section class="content" id="content"></section>
   </main>`;
   U.qs('#logoutBtn').onclick = Auth.logout;
+  const closeDrawer = ()=>{ U.qs('#sidebar').classList.remove('open'); U.qs('#overlay').classList.remove('show'); };
   U.qs('#menuBtn').onclick = ()=>{ U.qs('#sidebar').classList.toggle('open'); U.qs('#overlay').classList.toggle('show'); };
-  U.qs('#overlay').onclick = ()=>{ U.qs('#sidebar').classList.remove('open'); U.qs('#overlay').classList.remove('show'); };
+  U.qs('#overlay').onclick = closeDrawer;
+  // طيّ/توسيع الشريط الجانبي على سطح المكتب (يُحفظ بين الصفحات)
+  const side = U.qs('#sidebar'), rail = U.qs('#railBtn');
+  const setRail = mini=>{
+    side.classList.toggle('mini', mini);
+    document.body.classList.toggle('rail-hover', mini);
+    rail.querySelector('i').className = `fa-solid ${mini?'fa-angles-left':'fa-angles-right'}`;
+    localStorage.setItem('rail', mini?'1':'0');
+  };
+  setRail(localStorage.getItem('rail')==='1' && window.innerWidth>768);
+  rail.onclick = ()=>setRail(!side.classList.contains('mini'));
+  // إغلاق الدرج بمفتاح Esc + إبقاء العنصر النشط ظاهراً في القائمة
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeDrawer(); U.qs('#qsResults').innerHTML=''; } });
+  U.qs('.nav-item.active')?.scrollIntoView({block:'nearest'});
   // الثيم
   const applyTheme = t=>{ document.documentElement.dataset.theme=t; localStorage.setItem('theme',t); U.qs('#themeBtn i').className = `fa-solid ${t==='dark'?'fa-sun':'fa-moon'}`; };
   applyTheme(localStorage.getItem('theme')||'light');

@@ -1,20 +1,57 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تسجيل الدخول - كاشير برو</title>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><meta name="theme-color" content="#4f46e5"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تسجيل الدخول - كاشير برو</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src * data:; connect-src https://*.supabase.co wss://*.supabase.co;">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/config.js"></script><script src="assets/js/supabase.js"></script><script src="assets/js/utils.js"></script></head>
-<body><div class="login-page"><div class="login-card">
-<div class="logo"><i class="fa-solid fa-cash-register"></i></div>
-<h2 class="center" style="margin-bottom:4px">كاشير برو</h2><p class="center muted mb">نظام إدارة نقاط البيع المتكامل</p>
-<div class="tabs"><button class="active" data-t="login">دخول</button><button data-t="signup">حساب جديد</button></div>
-<form id="loginForm"><div class="form-group"><label>البريد الإلكتروني</label><input class="input" name="email" type="email" required autocomplete="email"></div>
-<div class="form-group"><label>كلمة المرور</label><input class="input" name="password" type="password" required minlength="6" autocomplete="current-password"></div>
-<button class="btn block lg" id="loginBtn"><i class="fa-solid fa-right-to-bracket"></i> دخول</button>
-<p class="center mt small"><a href="#" id="forgot" style="color:var(--primary)">نسيت كلمة المرور؟</a></p></form>
-<form id="signupForm" class="hidden"><div class="form-group"><label>الاسم الكامل</label><input class="input" name="full_name" required maxlength="80"></div>
-<div class="form-group"><label>البريد الإلكتروني</label><input class="input" name="email" type="email" required></div>
-<div class="form-group"><label>كلمة المرور</label><input class="input" name="password" type="password" required minlength="8" placeholder="8 أحرف على الأقل"></div>
-<button class="btn success block lg" id="signupBtn"><i class="fa-solid fa-user-plus"></i> إنشاء حساب</button>
-<p class="small muted mt center">أول حساب يُسجّل يصبح مدير النظام تلقائياً</p></form>
-</div></div>
+<body>
+<div class="login-page">
+  <!-- أشكال خلفية زخرفية -->
+  <div class="bg-shape s1"></div><div class="bg-shape s2"></div><div class="bg-shape s3"></div>
+
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo"><i class="fa-solid fa-cash-register"></i></div>
+      <h2 class="center" style="margin-bottom:4px">كاشير برو</h2>
+      <p class="center muted mb">نظام إدارة نقاط البيع المتكامل</p>
+
+      <div class="tabs"><button class="active" data-t="login">دخول</button><button data-t="signup">حساب جديد</button></div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group"><label>البريد الإلكتروني</label>
+          <div class="input-ico"><i class="fa-solid fa-envelope"></i><input class="input" name="email" type="email" required autocomplete="email" placeholder="name@store.com" dir="ltr" style="text-align:right"></div>
+        </div>
+        <div class="form-group"><label>كلمة المرور</label>
+          <div class="input-ico"><i class="fa-solid fa-lock"></i><input class="input" name="password" type="password" required minlength="6" autocomplete="current-password" placeholder="••••••••" dir="ltr" style="text-align:right">
+          <button type="button" class="pass-toggle" data-for="loginForm" title="إظهار/إخفاء"><i class="fa-solid fa-eye"></i></button></div>
+        </div>
+        <button class="btn block lg" id="loginBtn"><i class="fa-solid fa-right-to-bracket"></i> دخول</button>
+        <p class="center mt small"><a href="#" id="forgot" style="color:var(--primary);font-weight:700">نسيت كلمة المرور؟</a></p>
+      </form>
+
+      <form id="signupForm" class="hidden" novalidate>
+        <div class="form-group"><label>الاسم الكامل</label>
+          <div class="input-ico"><i class="fa-solid fa-user"></i><input class="input" name="full_name" required maxlength="80" placeholder="مثال: أحمد محمد"></div>
+        </div>
+        <div class="form-group"><label>البريد الإلكتروني</label>
+          <div class="input-ico"><i class="fa-solid fa-envelope"></i><input class="input" name="email" type="email" required autocomplete="email" placeholder="name@store.com" dir="ltr" style="text-align:right"></div>
+        </div>
+        <div class="form-group"><label>كلمة المرور</label>
+          <div class="input-ico"><i class="fa-solid fa-lock"></i><input class="input" name="password" type="password" required minlength="8" placeholder="8 أحرف على الأقل" dir="ltr" style="text-align:right">
+          <button type="button" class="pass-toggle" data-for="signupForm" title="إظهار/إخفاء"><i class="fa-solid fa-eye"></i></button></div>
+        </div>
+        <button class="btn success block lg" id="signupBtn"><i class="fa-solid fa-user-plus"></i> إنشاء حساب</button>
+        <p class="small muted mt center"><i class="fa-solid fa-circle-info"></i> أول حساب يُسجّل يصبح مدير النظام تلقائياً</p>
+      </form>
+    </div>
+
+    <!-- مميزات سريعة -->
+    <div class="login-feats">
+      <span><i class="fa-solid fa-bolt"></i> بيع سريع بالمسح</span>
+      <span><i class="fa-solid fa-boxes-stacked"></i> إدارة المخزون</span>
+      <span><i class="fa-solid fa-chart-line"></i> تقارير فورية</span>
+      <span><i class="fa-solid fa-shield-halved"></i> حماية كاملة</span>
+    </div>
+    <p class="login-copy">© <span id="year"></span> كاشير برو — جميع الحقوق محفوظة</p>
+  </div>
+</div>
 <script src="assets/js/login.js"></script></body></html>

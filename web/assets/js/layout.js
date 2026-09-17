@@ -29,6 +29,7 @@ const NAV = [
   {href:'settings.html', icon:'fa-gear', label:'الإعدادات', roles:['admin','manager']},
   {href:'backup.html', icon:'fa-database', label:'النسخ الاحتياطي', roles:['admin']},
   {href:'profile.html', icon:'fa-user', label:'حسابي'},
+  {href:'../guide.html', icon:'fa-book-open', label:'دليل الاستخدام', ext:true},
 ];
 
 function renderLayout(title){
@@ -36,7 +37,7 @@ function renderLayout(title){
   const role = Auth.profile?.role;
   const nav = NAV.filter(n=>!n.roles || n.roles.includes(role)).map(n=> n.sec
     ? `<div class="nav-sec">${n.sec}</div>`
-    : `<a href="${n.href}" class="nav-item ${cur===n.href?'active':''}"><i class="fa-solid ${n.icon}"></i><span>${n.label}</span></a>`).join('');
+    : `<a href="${n.href}"${n.ext?' target="_blank" rel="noopener"':''} class="nav-item ${cur===n.href?'active':''}"><i class="fa-solid ${n.icon}"></i><span>${n.label}</span>${n.ext?'<i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;opacity:.5;margin-inline-start:auto"></i>':''}</a>`).join('');
   const app = document.getElementById('app');
   app.innerHTML = `
   <aside class="sidebar" id="sidebar">

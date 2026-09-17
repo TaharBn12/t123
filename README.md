@@ -5,6 +5,7 @@
 | | الرابط |
 |---|---|
 | 🌐 الموقع (GitHub Pages) | https://taharbn12.github.io/t123/ |
+| 📖 دليل الاستخدام المختصر | https://taharbn12.github.io/t123/guide.html |
 | 📱 تحميل APK (رابط دائم) | https://github.com/TaharBn12/t123/releases/download/latest/cashier-scanner.apk |
 
 ## 📁 هيكل المشروع
